@@ -61,6 +61,7 @@ port = CljPort.start
 CljPort.psend(port, {:add,3})
 CljPort.psend(port, {:rem,2})
 CljPort.psend(port, {:add,5})
-6 = CljPort.preceive(port, :get)
+CljPort.psend(port, :get)
+6 = CljPort.preceive(port)
 ```
 
