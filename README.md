@@ -1,7 +1,7 @@
 clojure-erlastic
 ================
 
-[![Clojars Project](http://clojars.org/clojure-erlastic/latest-version.svg)]
+![Clojars Project](http://clojars.org/clojure-erlastic/latest-version.svg)
 
 Micro lib making use of erlang JInterface lib to decode and encode Binary
 Erlang Term and simple erlang port interface with core.async channel. So you
