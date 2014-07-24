@@ -11,6 +11,8 @@
     (is (= (-> [:a :b :c :d] encode decode) [:a :b :c :d])))
   (testing "List encoding"
     (is (= (-> '(:a :b :c :d) encode decode) '(:a :b :c :d))))
+  (testing "Set encoding : not bijective, set is list"
+    (is (= (-> #{:a :b :c :d} encode decode set) #{:a :b :c :d})))
   (testing "Float encoding"
     (is (= (-> 4.3 encode decode) 4.3)))
   (testing "Binary encoding"

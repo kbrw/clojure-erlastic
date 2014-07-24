@@ -20,15 +20,16 @@
 (defn encode [obj]
   (if (nil? obj) (new OtpErlangAtom "nil")
     (if (seq? obj) (new OtpErlangList (into-array OtpErlangObject (map encode obj)))
-      (if (vector? obj) (new OtpErlangTuple (into-array OtpErlangObject (map encode obj)))
-        (if (string? obj) (new OtpErlangBinary (bytes (byte-array (map byte obj))))
-          (if (keyword? obj) (new OtpErlangAtom (name obj))
-            (if (integer? obj) (new OtpErlangLong (long obj))
-              (if (float? obj) (new OtpErlangDouble (double obj))
-                (if (map? obj) (new OtpErlangMap (into-array OtpErlangObject (map encode (keys obj))) 
-                                                 (into-array OtpErlangObject (map encode (vals obj))))
-                  (if (= (Class/forName "[B") (type obj)) (new OtpErlangBinary (bytes obj))
-                    (new OtpErlangAtom (str obj))))))))))))
+      (if (set? obj) (new OtpErlangList (into-array OtpErlangObject (map encode obj)))
+        (if (vector? obj) (new OtpErlangTuple (into-array OtpErlangObject (map encode obj)))
+          (if (string? obj) (new OtpErlangBinary (bytes (byte-array (map byte obj))))
+            (if (keyword? obj) (new OtpErlangAtom (name obj))
+              (if (integer? obj) (new OtpErlangLong (long obj))
+                (if (float? obj) (new OtpErlangDouble (double obj))
+                  (if (map? obj) (new OtpErlangMap (into-array OtpErlangObject (map encode (keys obj))) 
+                                                   (into-array OtpErlangObject (map encode (vals obj))))
+                    (if (= (Class/forName "[B") (type obj)) (new OtpErlangBinary (bytes obj))
+                      (new OtpErlangAtom (str obj)))))))))))))
 
 (defn port-connection []
   (let [in (chan) out (chan)]
