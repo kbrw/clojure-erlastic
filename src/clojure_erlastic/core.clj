@@ -22,7 +22,7 @@
     (if (seq? obj) (new OtpErlangList (into-array OtpErlangObject (map encode obj)))
       (if (set? obj) (new OtpErlangList (into-array OtpErlangObject (map encode obj)))
         (if (vector? obj) (new OtpErlangTuple (into-array OtpErlangObject (map encode obj)))
-          (if (string? obj) (new OtpErlangBinary (bytes (byte-array (map byte obj))))
+          (if (string? obj) (new OtpErlangBinary (bytes (.getBytes obj "UTF-8")))
             (if (keyword? obj) (new OtpErlangAtom (name obj))
               (if (integer? obj) (new OtpErlangLong (long obj))
                 (if (float? obj) (new OtpErlangDouble (double obj))
