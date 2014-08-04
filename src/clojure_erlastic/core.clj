@@ -45,7 +45,7 @@
                 (>! in b)))))
         (catch Exception e (do 
           (.println System/err (str "receive error : " (type e) " " (.getMessage e))) 
-          (System/exit 0)))))
+          (System/exit 128)))))
     (go ;; term sender coroutine
       (try
         (while true
@@ -55,5 +55,5 @@
             (.flush System/out)))
         (catch Exception e (do 
           (.println System/err (str "send error : " (type e) " " (.getMessage e))) 
-          (System/exit 0)))))
+          (System/exit 128)))))
     [in out] ))
