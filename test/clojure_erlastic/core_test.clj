@@ -15,6 +15,8 @@
     (is (= (-> #{:a :b :c :d} encode decode set) #{:a :b :c :d})))
   (testing "Float encoding"
     (is (= (-> 4.3 encode decode) 4.3)))
+  (testing "Bool encoding"
+    (is (= (-> true encode decode) true)))
   (testing "Binary encoding"
     (is (= (-> (byte-array (repeat 4 0)) encode decode seq) (seq (byte-array (repeat 4 0))))))
   (testing "String encoding not reflective : string is binary"

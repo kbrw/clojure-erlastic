@@ -7,7 +7,8 @@
 
 (defn decode [obj]
   (let [t (type obj)]
-    (if (= t OtpErlangAtom) (keyword (.atomValue obj))
+    (if (= t OtpErlangAtom) (let [k (keyword (.atomValue obj))]
+                              (if (#{:true :false} k) (= k :true) k))
       (if (= t OtpErlangList) (seq (map decode (.elements obj)))
         (if (= t OtpErlangTuple) (vec (map decode (.elements obj)))
           (if (= t OtpErlangString) (.stringValue obj)
@@ -28,8 +29,9 @@
                 (if (float? obj) (OtpErlangDouble. (double obj))
                   (if (map? obj) (OtpErlangMap. (into-array OtpErlangObject (map encode (keys obj))) 
                                                 (into-array OtpErlangObject (map encode (vals obj))))
-                    (if (= (Class/forName "[B") (type obj)) (new OtpErlangBinary (bytes obj))
-                      (encode {:type (keyword (str (type obj))) :value (str obj)}))))))))))))
+                    (if (= (Class/forName "[B") (type obj)) (OtpErlangBinary. (bytes obj))
+                      (if (= java.lang.Boolean (type obj)) (encode (keyword (str obj)))
+                        (encode (str obj))))))))))))))
 
 (defn port-connection []
   (let [in (chan) out (chan)]
