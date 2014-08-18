@@ -3,7 +3,7 @@
                                   OtpErlangString OtpErlangList OtpErlangLong
                                   OtpErlangBinary OtpErlangDouble OtpErlangMap
                                   OtpErlangDecodeException OtpInputStream OtpOutputStream OtpException))
-(require '[clojure.core.async :as async :refer [<! >! chan go]])
+(require '[clojure.core.async :as async :refer [<! >! chan go close!]])
 
 (defn decode [obj]
   (let [t (type obj)]
@@ -18,18 +18,18 @@
                     :decoding_error))))))))))
 
 (defn encode [obj]
-  (if (nil? obj) (new OtpErlangAtom "nil")
-    (if (seq? obj) (new OtpErlangList (into-array OtpErlangObject (map encode obj)))
-      (if (set? obj) (new OtpErlangList (into-array OtpErlangObject (map encode obj)))
-        (if (vector? obj) (new OtpErlangTuple (into-array OtpErlangObject (map encode obj)))
-          (if (string? obj) (new OtpErlangBinary (bytes (.getBytes obj "UTF-8")))
-            (if (keyword? obj) (new OtpErlangAtom (name obj))
-              (if (integer? obj) (new OtpErlangLong (long obj))
-                (if (float? obj) (new OtpErlangDouble (double obj))
-                  (if (map? obj) (new OtpErlangMap (into-array OtpErlangObject (map encode (keys obj))) 
-                                                   (into-array OtpErlangObject (map encode (vals obj))))
+  (if (nil? obj) (OtpErlangAtom. "nil")
+    (if (seq? obj) (OtpErlangList. (into-array OtpErlangObject (map encode obj)))
+      (if (set? obj) (OtpErlangList. (into-array OtpErlangObject (map encode obj)))
+        (if (vector? obj) (OtpErlangTuple. (into-array OtpErlangObject (map encode obj)))
+          (if (string? obj) (OtpErlangBinary. (bytes (.getBytes obj "UTF-8")))
+            (if (keyword? obj) (OtpErlangAtom. (name obj))
+              (if (integer? obj) (OtpErlangLong. (long obj))
+                (if (float? obj) (OtpErlangDouble. (double obj))
+                  (if (map? obj) (OtpErlangMap. (into-array OtpErlangObject (map encode (keys obj))) 
+                                                (into-array OtpErlangObject (map encode (vals obj))))
                     (if (= (Class/forName "[B") (type obj)) (new OtpErlangBinary (bytes obj))
-                      (new OtpErlangAtom (str obj)))))))))))))
+                      (encode {:type (keyword (str (type obj))) :value (str obj)}))))))))))))
 
 (defn port-connection []
   (let [in (chan) out (chan)]
@@ -45,6 +45,7 @@
                 (>! in b)))))
         (catch Exception e (do 
           (.println System/err (str "receive error : " (type e) " " (.getMessage e))) 
+          (close! in) (close! out)
           (System/exit 128)))))
     (go ;; term sender coroutine
       (try
@@ -55,5 +56,6 @@
             (.flush System/out)))
         (catch Exception e (do 
           (.println System/err (str "send error : " (type e) " " (.getMessage e))) 
+          (close! in) (close! out)
           (System/exit 128)))))
     [in out] ))
