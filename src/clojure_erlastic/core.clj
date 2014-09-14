@@ -7,31 +7,36 @@
 
 (defn decode [obj]
   (let [t (type obj)]
-    (if (= t OtpErlangAtom) (let [k (keyword (.atomValue obj))]
+    (cond 
+      (= t OtpErlangAtom) (let [k (keyword (.atomValue obj))]
                               (if (#{:true :false} k) (= k :true) k))
-      (if (= t OtpErlangList) (seq (map decode (.elements obj)))
-        (if (= t OtpErlangTuple) (vec (map decode (.elements obj)))
-          (if (= t OtpErlangString) (.stringValue obj)
-            (if (= t OtpErlangBinary) (.binaryValue obj)
-              (if (= t OtpErlangMap) (zipmap (map decode (.keys obj)) (map decode (.values obj)))
-                (if (= t OtpErlangLong) (.longValue obj) 
-                  (if (= t OtpErlangDouble) (.doubleValue obj)
-                    :decoding_error))))))))))
+      (= t OtpErlangList) (seq (map decode (.elements obj)))
+      (= t OtpErlangTuple) (vec (map decode (.elements obj)))
+      (= t OtpErlangString) (.stringValue obj)
+      (= t OtpErlangBinary) (.binaryValue obj)
+      (= t OtpErlangMap) (zipmap (map decode (.keys obj)) (map decode (.values obj)))
+      (= t OtpErlangLong) (.longValue obj)
+      (= t OtpErlangDouble) (.doubleValue obj)
+      :else   :decoding_error)))
 
 (defn encode [obj]
-  (if (nil? obj) (OtpErlangAtom. "nil")
-    (if (seq? obj) (OtpErlangList. (into-array OtpErlangObject (map encode obj)))
-      (if (set? obj) (OtpErlangList. (into-array OtpErlangObject (map encode obj)))
-        (if (vector? obj) (OtpErlangTuple. (into-array OtpErlangObject (map encode obj)))
-          (if (string? obj) (OtpErlangBinary. (bytes (.getBytes obj "UTF-8")))
-            (if (keyword? obj) (OtpErlangAtom. (name obj))
-              (if (integer? obj) (OtpErlangLong. (long obj))
-                (if (float? obj) (OtpErlangDouble. (double obj))
-                  (if (map? obj) (OtpErlangMap. (into-array OtpErlangObject (map encode (keys obj))) 
-                                                (into-array OtpErlangObject (map encode (vals obj))))
-                    (if (= (Class/forName "[B") (type obj)) (OtpErlangBinary. (bytes obj))
-                      (if (= java.lang.Boolean (type obj)) (encode (keyword (str obj)))
-                        (encode (str obj))))))))))))))
+  (cond
+    (nil? obj) (OtpErlangAtom. "nil")
+    (seq? obj) (OtpErlangList. (into-array OtpErlangObject (map encode obj)))
+    (set? obj) (OtpErlangList. (into-array OtpErlangObject (map encode obj)))
+    (vector? obj) (OtpErlangTuple. (into-array OtpErlangObject (map encode obj)))
+    (string? obj) (OtpErlangBinary. (bytes (.getBytes obj "UTF-8")))
+    (keyword? obj) (OtpErlangAtom. (name obj))
+    (integer? obj) (OtpErlangLong. (long obj))
+    (float? obj) (OtpErlangDouble. (double obj))
+    (map? obj) (OtpErlangMap. (into-array OtpErlangObject (map encode (keys obj))) 
+                              (into-array OtpErlangObject (map encode (vals obj))))
+    (= (Class/forName "[B") (type obj)) (OtpErlangBinary. (bytes obj))
+    (= java.lang.Boolean (type obj)) (encode (keyword (str obj)))
+    :else   (encode (str obj))))
+
+(defn log [& params]
+  (.println System/err (apply str params)))
 
 (defn port-connection []
   (let [in (chan) out (chan)]
@@ -46,18 +51,16 @@
               (let [b (decode (.read_any (new OtpInputStream term-buf))) ]
                 (>! in b)))))
         (catch Exception e (do 
-          (.println System/err (str "receive error : " (type e) " " (.getMessage e))) 
-          (close! in) (close! out)
-          (System/exit 128)))))
+          (log "receive error : " (type e) " " (.getMessage e)) 
+          (close! out) (close! in)))))
     (go ;; term sender coroutine
-      (try
-        (while true
-          (let [out-term (new OtpOutputStream (encode (<! out)))]
-            (doto (new OtpOutputStream) (.write4BE (+ 1 (.size out-term))) (.write 131) (.writeTo System/out))
-            (.writeTo out-term System/out)
-            (.flush System/out)))
-        (catch Exception e (do 
-          (.println System/err (str "send error : " (type e) " " (.getMessage e))) 
-          (close! in) (close! out)
-          (System/exit 128)))))
+      (loop []
+        (when-let [term (<! out)]
+          (try
+            (let [out-term (new OtpOutputStream (encode term))]
+              (doto (new OtpOutputStream) (.write4BE (+ 1 (.size out-term))) (.write 131) (.writeTo System/out))
+              (.writeTo out-term System/out)
+              (.flush System/out))
+            (catch Exception e (log "send error : " (type e) " " (.getMessage e))))
+          (recur))))
     [in out] ))
