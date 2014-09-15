@@ -57,7 +57,7 @@ Then create your clojure server as a simple script
 
 ```clojure
 (require '[clojure.core.async :as async :refer [<! >! <!! go]])
-(require 'clojure-erlastic.core)
+(require '[clojure-erlastic.core :refer [port-connection log]])
 (use '[clojure.core.match :only (match)])
 
 (let [[in out] (clojure-erlastic.core/port-connection)]
@@ -97,11 +97,13 @@ CljPort.psend(port, :get)
 If you want to integrate your clojure server in your OTP application, use the
 `priv` directory which is copied 'as is'.
 
-> mix new myapp ; cd myapp
-> mkdir -p priv/calculator
-> vim priv/calculator/project.clj # define dependencies
-> vim priv/calculator/calculator.clj # write your server
-> cd priv/calculator ; lein uberjar ; cd ../../ # build the jar
+```bash
+mix new myapp ; cd myapp
+mkdir -p priv/calculator
+vim priv/calculator/project.clj # define dependencies
+vim priv/calculator/calculator.clj # write your server
+cd priv/calculator ; lein uberjar ; cd ../../ # build the jar
+```
 
 Then use `"#{:code.priv_dir(:myapp)}/calculator"` to find correct path in your app.
 
@@ -180,24 +182,36 @@ iex(5)> GenServer.cast Calculator,{:add, 3}
 iex(6)> GenServer.call Calculator,:get
 12
 ```
+## Handle exit
+
+The channels are closed when the launching erlang application dies, so you just
+have to test if `(<! in)` is `nil` to know if the connection with erlang is
+still opened.  
 
 ## Erlang style handler ##
 
-In Java you cannot write a function as big as you want (the compiler may fail), and the `go` and `match` macros expand into a lot of code. So it can be useful to wrap your server with an "erlang-style" handler.
+In Java you cannot write a function as big as you want (the compiler may fail),
+and the `go` and `match` macros expand into a lot of code. So it can be
+useful to wrap your server with an "erlang-style" handler.
+
+Clojure-erlastic provide the function `(run-server initfun handlefun initargs)`
+allowing you to easily develop a server using erlang-style handler :
+
+- the `init` function must return the initial state
+- the `handle` function must return `[:reply response newstate]`, or `[:noreply newstate]`
 
 ```clojure
-(defn handle [term state]
-    (match term
-      [:add n] [:noreply (+ state n)]
-      [:rem n] [:noreply (- state n)]
-      :get [:reply state state] ))
+(require '[clojure.core.async :as async :refer [<! >! <!! go]])
+(require '[clojure-erlastic.core :refer [run-server log]])
+(use '[clojure.core.match :only (match)])
 
-(let [[in out] (clojure-erlastic.core/port-connection)]
-  (<!! (go 
-    (loop [state 0]
-      (let [res (handle (<! in) state)]
-        (if (= :reply (res 0))
-          (do (>! out (res 1)) (recur (res 2)))
-          (recur (res 1))))))))
+(run-server
+  (fn [] 0)
+  (fn [term state] (match term
+    [:add n] [:noreply (+ state n)]
+    [:rem n] [:noreply (- state n)]
+    :get [:reply state state])) [])
+
+(log "end application, clean if necessary")
 ```
 
