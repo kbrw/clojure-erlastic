@@ -65,12 +65,14 @@
           (recur))))
     [in out] ))
 
-(defn run-server [init handle args]
-  (let [[in out] (port-connection)]                 ;; create channels to erlang
-    (<!! (go                                        ;; create a coroutine and block thread until coroutine ends
-      (loop [state (apply init args)]               ;; loop maintaining server state
-        (when-let [req (<! in)]                     ;; do something and recur only if "in" channel still opened, meaning erlang connection is up
-          (let [res (handle req state)]             ;; apply handler
-            (if (= :reply (res 0))                  ;; if first element of returned tuple is ":reply" it's a call else it's a cast
-              (do (>! out (res 1)) (recur (res 2))) ;; if [:reply response newstate] send back response and recur changing state
-              (recur (res 1))))))))))               ;; else [:noreply newstate] only recur changing state
+(defn run-server [init handle]
+  (let [[in out] (port-connection)]
+    (<!! (go
+      (loop [state (init (<! in))]
+        (if-let [req (<! in)]
+          (let [res (try (handle req state) (catch Exception e [:stop [:error e]]))]
+            (case (res 0)
+              :reply (do (>! out (res 1)) (recur (res 2)))
+              :noreply (recur (res 1))
+              :stop (res 1)))
+          :normal))))))
