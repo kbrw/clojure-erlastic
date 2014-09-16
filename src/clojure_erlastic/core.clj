@@ -65,14 +65,16 @@
           (recur))))
     [in out] ))
 
-(defn run-server [init handle]
-  (let [[in out] (port-connection)]
-    (<!! (go
-      (loop [state (init (<! in))]
-        (if-let [req (<! in)]
-          (let [res (try (handle req state) (catch Exception e [:stop [:error e]]))]
-            (case (res 0)
-              :reply (do (>! out (res 1)) (recur (res 2)))
-              :noreply (recur (res 1))
-              :stop (res 1)))
-          :normal))))))
+(defn run-server 
+  ([handle] (run-server (fn [state] state) handle))
+  ([init handle]
+    (let [[in out] (port-connection)]
+      (<!! (go
+        (loop [state (init (<! in))]
+          (if-let [req (<! in)]
+            (let [res (try (handle req state) (catch Exception e [:stop [:error e]]))]
+              (case (res 0)
+                :reply (do (>! out (res 1)) (recur (res 2)))
+                :noreply (recur (res 1))
+                :stop (res 1)))
+            :normal)))))))
