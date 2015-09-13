@@ -194,11 +194,14 @@ In Java you cannot write a function as big as you want (the compiler may fail),
 and the `go` and `match` macros expand into a lot of code. So it can be
 useful to wrap your server with an "erlang-style" handler.
 
-Clojure-erlastic provide the function `(run-server initfun handlefun initargs)`
+Clojure-erlastic provide the function `(run-server initfun handlefun)`
 allowing you to easily develop a server using erlang-style handler :
 
 - the `init` function must return the initial state
 - the `handle` function must return `[:reply response newstate]`, or `[:noreply newstate]`
+
+The argument of the init function is the first message sent by the erlang port
+after starting.
 
 ```clojure
 (require '[clojure.core.async :as async :refer [<! >! <!! go]])
@@ -206,11 +209,11 @@ allowing you to easily develop a server using erlang-style handler :
 (use '[clojure.core.match :only (match)])
 
 (run-server
-  (fn [] 0)
+  (fn [_] 0)
   (fn [term state] (match term
     [:add n] [:noreply (+ state n)]
     [:rem n] [:noreply (- state n)]
-    :get [:reply state state])) [])
+    :get [:reply state state])))
 
 (log "end application, clean if necessary")
 ```
