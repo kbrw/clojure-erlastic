@@ -7,8 +7,11 @@ Micro lib making use of erlang JInterface lib to decode and encode Binary
 Erlang Term and simple erlang port interface with core.async channel. So you
 can communicate with erlang coroutine with clojure abstraction
 
+Designed to be used (but not necessarily) with
+[https://github.com/awetzel/exos](https://github.com/awetzel/exos).
+
 Last version of JInterface (from erlang 17.0) is taken from google scalaris
-maven repo.
+maven repo. 
 
 ## Usage
 
@@ -24,8 +27,28 @@ and decoded into erlang binary term following these rules :
 - erlang integer is clojure long
 - erlang float is clojure double
 - erlang map is clojure map (thanks to erlang 17.0)
-- clojure string is erlang binary (utf8)
 - clojure set is erlang list
+
+Conversion of nil and string are configurable : every functions
+`port-connection`, `decode`, `encode`, `run-server` can take an optional
+`config` argument : a map defining 3 configs `:convention`, `:str-detect`, `:str-autodetect-len`.
+
+- if `(= :convention :elixir)` then : 
+  - clojure nil is erlang `nil` atom, so elixir `nil`
+  - clojure string is encoded into erlang utf8 binary
+  - erlang binaries are decoded into clojure string :
+    - always if `(= :str-detect :all)`
+    - never if `(= :str-detect :none)`
+    - if the "str-autodetect-len" first bytes are printable when `(= :str-detect :auto)`
+- if `(= :convention :erlang)` then : 
+  - clojure nil is erlang `undefined`
+  - clojure string is encoded into erlang integer list
+  - erlang lists are decoded into clojure string :
+    - always if `(= :str-detect :all)`
+    - never if `(= :str-detect :none)`
+    - if the "str-autodetect-len" first elems are printable when `(= :str-detect :auto)`
+
+- default config is Elixir convention with no str detection.
 
 For instance, here is a simple echo server :
 
@@ -213,8 +236,8 @@ after starting.
   (fn [term state] (match term
     [:add n] [:noreply (+ state n)]
     [:rem n] [:noreply (- state n)]
-    :get [:reply state state])))
+    :get [:reply state state]))
+  {:convention :erlang})
 
 (log "end application, clean if necessary")
 ```
-
