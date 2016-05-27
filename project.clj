@@ -10,4 +10,4 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojure/core.async "0.1.303.0-886421-alpha"]
                  [org.erlang.otp/jinterface "1.5.9"]]
-  :repositories {"scalaris" "https://scalaris.googlecode.com/svn/maven/"})
+  :repositories {"scalaris" "https://scalaris-team.github.io/scalaris/maven"})
